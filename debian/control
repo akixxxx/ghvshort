@@ -1,0 +1,20 @@
+Source: ghvshort
+Section: web
+Priority: optional
+Maintainer: Christian Schneider <chris@chris-codes.de>
+Build-Depends: debhelper-compat (= 13), dh-python, python3-all, python3-setuptools
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+
+Package: ghvshort
+Architecture: all
+Depends: ${misc:Depends}, ${python3:Depends},
+ python3-fastapi,
+ python3-uvicorn,
+ python3-typer
+Recommends:
+ python3-tomli
+Suggests:
+ nginx
+Description: Minimaler Link Shortener (CLI-only) mit FastAPI + SQLite
+ Kleiner Redirect-Dienst ohne Web-Admin-GUI. Verwaltung per CLI.

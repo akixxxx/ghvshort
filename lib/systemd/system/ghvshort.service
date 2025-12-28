@@ -1,0 +1,56 @@
+[Unit]
+Description=GHVShort Vereins-Linkshortener
+After=network.target
+
+[Service]
+Type=simple
+User=ghvshort
+Group=ghvshort
+
+Environment=GHVSHORT_CONFIG=/etc/ghvshort/config.toml
+WorkingDirectory=/var/lib/ghvshort
+
+# Start
+ExecStart=/usr/bin/ghvshort serve
+Restart=on-failure
+RestartSec=2s
+
+# Access Control
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+
+# Security
+ProtectSystem=strict
+ProtectHome=true
+
+ReadWritePaths=/var/lib/ghvshort
+
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectHostname=true
+ProtectClock=true
+
+LockPersonality=true
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+
+MemoryDenyWriteExecute=true
+
+SystemCallArchitectures=native
+SystemCallFilter=@system-service @network-io
+SystemCallErrorNumber=EPERM
+
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+UMask=0027
+
+# Logs
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

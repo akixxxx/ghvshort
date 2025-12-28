@@ -1,0 +1,13 @@
+FROM debian:bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential devscripts debhelper dh-python \
+    python3-all python3-setuptools pybuild-plugin-pyproject \
+    python3-fastapi python3-uvicorn python3-typer \
+    fakeroot ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+CMD ["bash", "-lc", "dpkg-buildpackage -us -uc"]

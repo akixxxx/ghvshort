@@ -1,0 +1,12 @@
+[server]
+base_url = "http://localhost:8731"
+bind_host = "127.0.0.1"
+bind_port = 8731
+
+[storage]
+db_path = ".local/ghvshort.db"
+
+[slugs]
+pattern = "^[a-z0-9][a-z0-9_-]{0,62}$"
+reserved = ["health", "metrics", "favicon.ico", "robots.txt"]
+default_code = 302

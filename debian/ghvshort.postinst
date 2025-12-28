@@ -1,0 +1,37 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+  configure)
+
+    if ! id ghvshort >/dev/null 2>&1; then
+      adduser \
+        --system \
+        --group \
+        --home /var/lib/ghvshort \
+        --no-create-home \
+        ghvshort
+    fi
+
+    mkdir -p /var/lib/ghvshort
+    chown ghvshort:ghvshort /var/lib/ghvshort
+    chmod 0750 /var/lib/ghvshort
+
+    if command -v ghvshort >/dev/null 2>&1; then
+      su -s /bin/sh -c \
+        'GHVSHORT_CONFIG=/etc/ghvshort/config.toml ghvshort db-init' \
+        ghvshort >/dev/null 2>&1 || true
+    fi
+
+    # just to be sure
+    chown -R ghvshort:ghvshort /var/lib/ghvshort
+    chmod 0750 /var/lib/ghvshort
+
+    systemctl daemon-reload >/dev/null 2>&1 || true
+    systemctl enable ghvshort.service >/dev/null 2>&1 || true
+    systemctl restart ghvshort.service >/dev/null 2>&1 || true
+    ;;
+
+esac
+
+exit 0

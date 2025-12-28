@@ -1,0 +1,91 @@
+# --- HTTP and ACME ---
+server {
+    listen 80;
+    listen [::]:80;
+    server_name go.ghv-altstadt-mg.de;
+
+    # acme challenge via webroot
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/_letsencrypt;
+        default_type "text/plain";
+        allow all;
+        try_files $uri =404;
+    }
+
+    # redirect to HTTPS
+    location / { return 301 https://$host$request_uri; }
+}
+
+# --- HTTPS ---
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name go.ghv-altstadt-mg.de;
+
+    # --- TLS (LE) ---
+    ssl_certificate     /etc/letsencrypt/live/go.ghv-altstadt-mg.de/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/go.ghv-altstadt-mg.de/privkey.pem;
+
+    # --- Performance/CPU ---
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # --- Security Headers ---
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+
+    # --- Strict CSP ---
+    add_header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'" always;
+
+    # --- Basic Hardening ---
+    client_max_body_size 1k;
+    client_body_timeout 10s;
+    client_header_timeout 10s;
+    keepalive_timeout 30s;
+    send_timeout 10s;
+
+    limit_conn ghvshort_conn 20;
+
+    location = /favicon.ico { return 204; access_log off; }
+    location = /robots.txt  { default_type text/plain; return 200 "User-agent: *\nDisallow: /\n"; }
+
+    # --- Health ---
+    location = /health {
+        limit_req zone=ghvshort_req burst=5 nodelay;
+
+        proxy_pass http://127.0.0.1:8731/health;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 5s;
+        proxy_send_timeout 5s;
+
+        proxy_buffering on;
+    }
+
+    # --- Redirect Service ---
+    location / {
+        limit_req zone=ghvshort_req burst=30 nodelay;
+
+        proxy_pass http://127.0.0.1:8731;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+
+        proxy_connect_timeout 2s;
+        proxy_read_timeout 10s;
+        proxy_send_timeout 10s;
+
+        proxy_buffering on;
+    }
+}
