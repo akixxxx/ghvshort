@@ -1,26 +1,36 @@
 # ghvshort
 
-**ghvshort** ist ein minimaler, vereinsinterner Link-Shortener ohne Web-Admin-Oberfläche.
-Verwaltung erfolgt ausschließlich über eine CLI, der HTTP-Dienst liefert nur Redirects.
+![Debian](https://img.shields.io/badge/Debian-12%20(bookworm)-A81D33?logo=debian&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Style](https://img.shields.io/badge/Code%20Style-ruff-black)
+![Type%20Checked](https://img.shields.io/badge/Type%20Checked-mypy-blueviolet)
 
-Ziel ist ein **robuster, wartbarer Dienst** für wenige, kontrollierte Kurzlinks
-(z. B. Turniere, Trainingspläne, Dokumente).
+**ghvshort** ist ein minimaler, vereinsinterner Link-Shortener ohne Web-Admin-Oberfläche.
+Er besteht aus einem kleinen HTTP-Redirect-Dienst und einer CLI zur Verwaltung.
+
+Das Projekt ist bewusst:
+- **konservativ**
+- **Debian-konform**
+- **wartbar über Jahre**
+- **ohne unnötige Abhängigkeiten**
 
 ---
 
 ## Eigenschaften
 
-- HTTP-Redirect-Dienst (FastAPI)
+- Redirect-Service (FastAPI)
 - Verwaltung ausschließlich per CLI
 - Eigene Slugs (`trainingplan`, `turnier-2026`, …)
-- SQLite als Datenbank (eine Datei)
-- systemd-Service
-- Reverse-Proxy-fähig (nginx empfohlen, aber nicht erzwungen)
-- Debian-konform paketierbar
+- SQLite (eine Datei)
+- systemd-Service mit Härtung
+- Reverse-Proxy via nginx
+- Debian-Paket (`.deb`)
+- Dev-Workflow mit `uv`, ruff, mypy, pytest, pre-commit
 
 ---
 
-## Architektur (Überblick)
+## Architektur
 
 ```
 
@@ -28,34 +38,34 @@ Internet
 │
 │ HTTPS
 ▼
-nginx (TLS, Logs, Rate Limit)
+nginx (TLS, Logs, Hardening)
 │
-│ HTTP (localhost)
+│ HTTP (127.0.0.1)
 ▼
 ghvshort (FastAPI)
 │
 ▼
 SQLite (/var/lib/ghvshort/ghvshort.db)
 
-```
+````
 
 ---
 
 ## Verzeichnisstruktur (Installation)
 
 | Pfad | Zweck |
-|-----|------|
+|----|----|
 | `/usr/bin/ghvshort` | CLI & Server |
 | `/etc/ghvshort/config.toml` | Konfiguration |
-| `/var/lib/ghvshort/` | SQLite-Datenbank |
-| `/lib/systemd/system/ghvshort.service` | systemd Unit |
-| `/usr/share/doc/ghvshort/examples/nginx/` | nginx-Beispielkonfiguration |
+| `/var/lib/ghvshort/` | SQLite-Daten |
+| `/lib/systemd/system/ghvshort.service` | systemd-Unit |
+| `/usr/share/doc/ghvshort/examples/nginx/` | nginx-Beispiel |
 
 ---
 
 ## Konfiguration
 
-### `/etc/ghvshort/config.toml`
+### `/etc/ghvshort/config.toml` (Produktion)
 
 ```toml
 [server]
@@ -72,19 +82,11 @@ reserved = ["health", "metrics", "favicon.ico", "robots.txt"]
 default_code = 302
 ````
 
-**Hinweise:**
-
-* `default_code = 302` ist bewusst gewählt (Links können sich ändern)
-* `301` nur verwenden, wenn ein Ziel wirklich dauerhaft ist
-* Slugs sind absichtlich eingeschränkt (keine Großbuchstaben, keine Sonderzeichen)
-
 ---
 
 ## CLI-Verwendung
 
-Alle Befehle erfolgen über das Kommando `ghvshort`.
-
-### Datenbank initialisieren (idempotent)
+### DB initialisieren (idempotent)
 
 ```bash
 ghvshort db-init
@@ -96,10 +98,10 @@ ghvshort db-init
 ghvshort add trainingplan https://example.org/training.pdf
 ```
 
-Mit festem Redirect-Code:
+Mit Redirect-Code:
 
 ```bash
-ghvshort add turnier https://example.org/info --code 301
+ghvshort add satzung https://example.org/satzung.pdf --code 301
 ```
 
 Mit Ablaufdatum:
@@ -108,84 +110,38 @@ Mit Ablaufdatum:
 ghvshort add anmeldung https://example.org/form --expires 2026-03-01
 ```
 
----
-
-### Link ändern
-
-```bash
-ghvshort set trainingplan https://example.org/training-v2.pdf
-```
-
-Ablaufdatum entfernen:
-
-```bash
-ghvshort set anmeldung --no-expires
-```
-
----
-
-### Link löschen
-
-```bash
-ghvshort rm trainingplan
-```
-
----
-
-### Anzeigen
-
-```bash
-ghvshort show trainingplan
-```
-
----
-
-### Alle Links auflisten
+### Anzeigen / ändern / löschen
 
 ```bash
 ghvshort ls
-```
-
-Als JSON:
-
-```bash
-ghvshort ls --format json
+ghvshort show trainingplan
+ghvshort set trainingplan https://example.org/v2.pdf
+ghvshort rm trainingplan
 ```
 
 ---
 
 ## Betrieb (systemd)
 
-### Status
-
 ```bash
 systemctl status ghvshort
-```
-
-### Logs
-
-```bash
 journalctl -u ghvshort -f
-```
-
-### Neustart
-
-```bash
 systemctl restart ghvshort
 ```
 
+Der Dienst läuft als **User `ghvshort`** und kann **nur** nach `/var/lib/ghvshort` schreiben.
+
 ---
 
-## nginx (Reverse Proxy)
+## nginx
 
-ghvshort bringt **keine aktive nginx-Konfiguration** mit.
-Eine Beispielkonfiguration liegt unter:
+Beispielkonfiguration liegt unter:
 
 ```
 /usr/share/doc/ghvshort/examples/nginx/go.ghv-altstadt-mg.de.conf
 ```
 
-### Aktivierung (manuell, bewusst)
+Aktivierung erfolgt **bewusst manuell**:
 
 ```bash
 cp /usr/share/doc/ghvshort/examples/nginx/go.ghv-altstadt-mg.de.conf \
@@ -198,73 +154,133 @@ nginx -t
 systemctl reload nginx
 ```
 
-TLS (z. B. via Certbot) wird **nicht** vom Paket konfiguriert.
+---
+
+## TLS / Let’s Encrypt (certbot)
+
+Webroot-Methode (keine automatische nginx-Manipulation):
+
+```bash
+apt install certbot
+mkdir -p /var/www/_letsencrypt
+
+certbot certonly \
+  --webroot \
+  -w /var/www/_letsencrypt \
+  -d go.ghv-altstadt-mg.de
+```
+
+Zertifikate liegen danach unter:
+
+```
+/etc/letsencrypt/live/go.ghv-altstadt-mg.de/
+```
 
 ---
 
-## Monitoring & Statistik
+## Entwicklung (macOS / lokal)
 
-* Jeder Redirect erhöht einen internen `hits`-Zähler
-* Zusätzlich stehen nginx Access Logs zur Verfügung
-* Auswertung kann z. B. über:
+### Dev-Config
 
-  * klassische Logfiles
-  * Matomo (Log-Import)
-  * eigene Skripte
-    erfolgen
+`etc/ghvshort/config.dev.toml`:
+
+```toml
+[server]
+base_url = "http://localhost:8731"
+bind_host = "127.0.0.1"
+bind_port = 8731
+
+[storage]
+db_path = ".local/ghvshort.db"
+
+[slugs]
+pattern = "^[a-z0-9][a-z0-9_-]{0,62}$"
+reserved = ["health"]
+default_code = 302
+```
+
+### Workflow
+
+```bash
+make dev
+make run
+make check
+```
 
 ---
 
-## Backup & Restore
+## Tooling
 
-### Backup
+* **ruff** – Lint & Format
+* **mypy** – Typprüfung
+* **pytest** – Tests
+* **pre-commit** – lokale Quality-Gates
+
+```bash
+make precommit
+pre-commit run --all-files
+```
+
+---
+
+## Debian-Build (Docker, Debian 12 / bookworm)
+
+### Versionierung
+
+Debian-Versionen werden im Format gebaut:
+
+```
+YYYY.MM.DD-1
+```
+
+Setzen:
+
+```bash
+make deb-version
+git commit -am "Release $(date +%Y.%m.%d)-1"
+```
+
+### Build
+
+```bash
+make deb-docker-dist
+```
+
+Artefakte liegen danach unter:
+
+```
+dist/
+  ghvshort_*.deb
+  ghvshort_*.buildinfo
+  ghvshort_*.changes
+```
+
+---
+
+## Backup / Restore
 
 ```bash
 systemctl stop ghvshort
-cp /var/lib/ghvshort/ghvshort.db /backup/ghvshort.db
-systemctl start ghvshort
-```
-
-### Restore
-
-```bash
-systemctl stop ghvshort
-cp /backup/ghvshort.db /var/lib/ghvshort/ghvshort.db
-chown ghvshort:ghvshort /var/lib/ghvshort/ghvshort.db
+cp /var/lib/ghvshort/ghvshort.db /backup/
 systemctl start ghvshort
 ```
 
 ---
 
-## Entwicklung (lokal, mit uv)
+## Design-Entscheidungen
 
-```bash
-uv init --app --package ghvshort
-uv add fastapi uvicorn typer
-
-export GHVSHORT_CONFIG=$PWD/etc/ghvshort/config.toml
-
-uv run ghvshort db-init
-uv run ghvshort add test https://example.org
-uv run ghvshort serve
-```
-
-Test:
-
-```bash
-curl -i http://127.0.0.1:8731/test
-
-
-## Design-Entscheidungen (bewusst)
-
-* **keine Web-GUI** → weniger Angriffsfläche
-* **SQLite** → einfach, robust, ausreichend
-* **keine automatische nginx-Aktivierung** → Debian-konform
-* **CLI-only** → klare Verantwortlichkeiten
+* keine Web-GUI
+* CLI als primäres Interface
+* SQLite statt Server-DB
+* nginx nicht automatisch konfiguriert
+* Debian-Konventionen strikt eingehalten
 
 ---
 
-## Lizenz / Betrieb
+## Lizenz
 
-Internes Vereinsprojekt.
-Keine öffentliche API, kein Mehrmandantenbetrieb.
+Dieses Projekt steht unter der **MIT-Lizenz**.
+Siehe Datei [`LICENSE`](LICENSE).
+
+Copyright © 2026
+Christian Schneider
