@@ -1,3 +1,9 @@
+ghvshort (2025.12.28-3) testing; urgency=medium
+
+  * Fixed cli signatures.
+
+ -- Christian Schneider <chris@chris-codes.de>  Sun, 28 Dec 2025 22:45:00 +0100
+
 ghvshort (2025.12.28-2) testing; urgency=medium
 
   * Minor improvements.

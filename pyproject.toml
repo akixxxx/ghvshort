@@ -16,7 +16,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pytest>=8.0",
-  "ruff>=0.5.0",
+  "ruff>=0.8.4",
   "mypy>=1.10",
   "pre-commit>=3.7",
   "httpx>=0.27",
@@ -52,6 +52,9 @@ select = [
 ignore = [
   "E501",           # line length handled by formatter / pragmatic
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"ghvshort/cli.py" = ["UP"]   # Debian/typer: cli-signatures must use Optional
 
 [tool.ruff.format]
 quote-style = "double"

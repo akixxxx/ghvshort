@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from typing import Optional
 from urllib.parse import urlparse
 
 import typer
@@ -12,7 +13,7 @@ from .db import Repo
 app = typer.Typer(add_completion=False)
 
 
-def parse_expires(expires: str | None) -> str | None:
+def parse_expires(expires: Optional[str]) -> Optional[str]:
     """Akzeptiert 'YYYY-MM-DD' oder ISO8601. Speichert als UTC ISO ohne microseconds."""
     if expires is None:
         return None
@@ -64,7 +65,7 @@ def add(
     slug: str,
     url: str,
     code: int = typer.Option(None, help="301 oder 302"),
-    expires: str | None = typer.Option(None, help='Ablauf: "YYYY-MM-DD" oder ISO8601'),
+    expires: Optional[str] = typer.Option(None, help='Ablauf: "YYYY-MM-DD" oder ISO8601'),
 ):
     repo, settings = get_repo()
     validate_slug(slug, settings)
@@ -88,9 +89,9 @@ def add(
 @app.command()
 def set(
     slug: str,
-    url: str | None = typer.Argument(None),
-    code: int | None = typer.Option(None, help="301 oder 302"),
-    expires: str | None = typer.Option(None, help='Ablauf: "YYYY-MM-DD" oder ISO8601'),
+    url: Optional[str] = typer.Argument(None),
+    code: Optional[int] = typer.Option(None, help="301 oder 302"),
+    expires: Optional[str] = typer.Option(None, help='Ablauf: "YYYY-MM-DD" oder ISO8601'),
     no_expires: bool = typer.Option(False, help="Ablaufdatum entfernen"),
 ):
     repo, settings = get_repo()
@@ -182,8 +183,8 @@ def list_links(format: str = typer.Option("table", help="table|json")):
 
 @app.command()
 def serve(
-    host: str | None = typer.Option(None),
-    port: int | None = typer.Option(None),
+    host: Optional[str] = typer.Option(None),
+    port: Optional[int] = typer.Option(None),
 ):
     """Startet den HTTP-Dienst (für systemd)."""
     import uvicorn
