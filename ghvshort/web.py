@@ -1,35 +1,66 @@
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from datetime import datetime
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
 
 from .config import load_settings
 from .db import Repo
 
-settings = load_settings()
-repo = Repo(settings.db_path)
-repo.init_db()
-
-app = FastAPI(title="GHVShort", version="0.1.0")
+app = FastAPI()
 
 
-@app.get("/health", response_class=PlainTextResponse)
-def health() -> str:
-    return "ok"
-
-
-@app.get("/{slug}")
-def redirect_slug(slug: str):
-    if slug in settings.reserved_slugs:
-        raise HTTPException(status_code=404, detail="Not found") from None
-    if not settings.slug_re.match(slug):
-        raise HTTPException(status_code=404, detail="Not found") from None
-
+def _is_expired(expires_at: Optional[str]) -> bool:
+    if not expires_at:
+        return False
+    # Wir speichern ISO8601 in UTC. datetime.fromisoformat kann das lesen.
     try:
-        link = repo.resolve_and_hit(slug)
-    except KeyError as e:
-        raise HTTPException(status_code=404, detail="Not found") from e
-    except PermissionError as e:
-        raise HTTPException(status_code=410, detail="Gone") from e
+        exp = datetime.fromisoformat(expires_at)
+    except ValueError:
+        # Wenn Daten kaputt sind, lieber 500 vermeiden: dann als "nicht abgelaufen" behandeln.
+        return False
+    # naive vs aware: wenn naive, behandeln wir es als UTC-naiv
+    now = datetime.utcnow() if exp.tzinfo is None else datetime.now(exp.tzinfo)
+    return exp <= now
 
+
+def _not_yet_valid(not_before_at: Optional[str]) -> bool:
+    if not not_before_at:
+        return False
+    try:
+        nb = datetime.fromisoformat(not_before_at)
+    except ValueError:
+        return False
+
+    now = datetime.utcnow() if nb.tzinfo is None else datetime.now(nb.tzinfo)
+    return now < nb
+
+
+@app.get("/health")
+def health(request: Request):
+    # Defense-in-depth: health soll lokal sein (nginx blockt extern sowieso).
+    client = request.client.host if request.client else None
+    if client not in ("127.0.0.1", "::1"):
+        raise HTTPException(status_code=404)
+    return {"status": "ok"}
+
+
+@app.api_route("/{slug}", methods=["GET", "HEAD"])
+def redirect_slug(slug: str):
+    settings = load_settings()
+    repo = Repo(str(settings.db_path))
+
+    link = repo.get_link_active(slug)
+    if link is None:
+        raise HTTPException(status_code=404)
+
+    if _not_yet_valid(link.not_before_at):
+        raise HTTPException(status_code=404)
+
+    if _is_expired(link.expires_at):
+        raise HTTPException(status_code=410)
+
+    repo.touch_hit(slug)
     return RedirectResponse(url=link.url, status_code=link.code)

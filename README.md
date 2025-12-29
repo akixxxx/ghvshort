@@ -1,71 +1,49 @@
 # ghvshort
 
-![Debian](https://img.shields.io/badge/Debian-12%20(bookworm)-A81D33?logo=debian&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Style](https://img.shields.io/badge/Code%20Style-ruff-black)
-![Type%20Checked](https://img.shields.io/badge/Type%20Checked-mypy-blueviolet)
+Ein schlanker, selbst betriebener Link-Shortener für den
+**GHV Altstadt/MG-Bettrath e.V.**
 
-**ghvshort** ist ein minimaler, vereinsinterner Link-Shortener ohne Web-Admin-Oberfläche.
-Er besteht aus einem kleinen HTTP-Redirect-Dienst und einer CLI zur Verwaltung.
-
-Das Projekt ist bewusst:
-- **konservativ**
-- **Debian-konform**
-- **wartbar über Jahre**
-- **ohne unnötige Abhängigkeiten**
+Kein Webinterface, keine Cloud-Abhängigkeiten – Verwaltung erfolgt ausschließlich über eine CLI.
+Der Dienst ist für den dauerhaften Betrieb auf einem Debian-Server ausgelegt und wird als `.deb`-Paket ausgeliefert.
 
 ---
 
 ## Eigenschaften
 
-- Redirect-Service (FastAPI)
-- Verwaltung ausschließlich per CLI
-- Eigene Slugs (`trainingplan`, `turnier-2026`, …)
-- SQLite (eine Datei)
-- systemd-Service mit Härtung
-- Reverse-Proxy via nginx
-- Debian-Paket (`.deb`)
-- Dev-Workflow mit `uv`, ruff, mypy, pytest, pre-commit
+- HTTP-Redirects (301 / 302)
+- Eigene Slugs
+- SQLite (stdlib), keine externen DB-Abhängigkeiten
+- CLI-Verwaltung (`ghvshort`)
+- Zeitsteuerung:
+  - `not-before` (Link ist erst ab Datum gültig)
+  - `expires` (Link läuft ab)
+- Zugriffszähler (`hits`)
+- Soft-Delete + Cleanup
+- Status-Übersicht (aktiv / geplant / abgelaufen / gelöscht)
+- Systemd-Service + nginx-Integration
+- Automatische Schema-Migrationen (SQLite)
 
 ---
 
-## Architektur
+## Installation
 
-```
-
-Internet
-│
-│ HTTPS
-▼
-nginx (TLS, Logs, Hardening)
-│
-│ HTTP (127.0.0.1)
-▼
-ghvshort (FastAPI)
-│
-▼
-SQLite (/var/lib/ghvshort/ghvshort.db)
-
+```bash
+apt install ghvshort
 ````
 
----
-
-## Verzeichnisstruktur (Installation)
-
-| Pfad | Zweck |
-|----|----|
-| `/usr/bin/ghvshort` | CLI & Server |
-| `/etc/ghvshort/config.toml` | Konfiguration |
-| `/var/lib/ghvshort/` | SQLite-Daten |
-| `/lib/systemd/system/ghvshort.service` | systemd-Unit |
-| `/usr/share/doc/ghvshort/examples/nginx/` | nginx-Beispiel |
+Nach der Installation läuft der Dienst standardmäßig lokal auf `127.0.0.1` und wird über nginx exponiert.
 
 ---
 
 ## Konfiguration
 
-### `/etc/ghvshort/config.toml` (Produktion)
+Standardpfad:
+
+```text
+/etc/ghvshort/config.toml
+```
+
+Beispiel:
 
 ```toml
 [server]
@@ -78,209 +56,203 @@ db_path = "/var/lib/ghvshort/ghvshort.db"
 
 [slugs]
 pattern = "^[a-z0-9][a-z0-9_-]{0,62}$"
-reserved = ["health", "metrics", "favicon.ico", "robots.txt"]
+reserved = ["health"]
 default_code = 302
-````
+```
+
+Alle Zeitangaben erfolgen in **UTC** und werden als **ISO8601** gespeichert.
 
 ---
 
-## CLI-Verwendung
+## CLI-Befehle
 
-### DB initialisieren (idempotent)
+### Datenbank initialisieren / migrieren
 
 ```bash
 ghvshort db-init
 ```
 
+Wird automatisch bei Installation und Start ausgeführt.
+SQLite-Migrationen laufen **vorwärts-only** über `PRAGMA user_version`.
+
+---
+
 ### Link anlegen
 
 ```bash
-ghvshort add trainingplan https://example.org/training.pdf
+ghvshort add <slug> <url> [OPTIONS]
 ```
 
-Mit Redirect-Code:
+Beispiele:
 
 ```bash
-ghvshort add satzung https://example.org/satzung.pdf --code 301
+# sofort gültig
+ghvshort add sommerfest https://example.org/fest
+
+# erst ab Datum gültig
+ghvshort add sommerfest https://example.org/fest \
+  --not-before 2026-06-01
+
+# mit Ablaufdatum
+ghvshort add sommerfest https://example.org/fest \
+  --expires 2026-06-03
+
+# mit beidem
+ghvshort add sommerfest https://example.org/fest \
+  --not-before 2026-06-01 \
+  --expires 2026-06-03
 ```
 
-Mit Ablaufdatum:
+Optionen:
+
+* `--code 301|302`
+* `--not-before YYYY-MM-DD | ISO8601`
+* `--expires YYYY-MM-DD | ISO8601`
+
+---
+
+### Link ändern
 
 ```bash
-ghvshort add anmeldung https://example.org/form --expires 2026-03-01
+ghvshort set <slug> [OPTIONS]
 ```
 
-### Anzeigen / ändern / löschen
+Beispiele:
+
+```bash
+# URL ändern
+ghvshort set sommerfest https://neue-url.example
+
+# Ablaufdatum entfernen
+ghvshort set sommerfest --no-expires
+
+# Startdatum entfernen
+ghvshort set sommerfest --no-not-before
+```
+
+---
+
+### Link löschen (Soft-Delete)
+
+```bash
+ghvshort rm <slug>
+```
+
+Markiert den Link als gelöscht (Soft-Delete). Der Eintrag bleibt für Status und Audit erhalten.
+
+### Link endgültig entfernen
+
+```bash
+ghvshort purge <slug> --yes
+````
+
+Löscht den Link unwiderruflich aus der Datenbank.
+
+---
+
+### Auflisten aller Links
 
 ```bash
 ghvshort ls
-ghvshort show trainingplan
-ghvshort set trainingplan https://example.org/v2.pdf
-ghvshort rm trainingplan
+```
+
+Formate:
+
+```bash
+ghvshort ls --format table   # Standard, menschenlesbar
+ghvshort ls --format tsv     # für Skripte
+ghvshort ls --format json
 ```
 
 ---
 
-## Betrieb (systemd)
+### Statusübersicht
 
 ```bash
-systemctl status ghvshort
-journalctl -u ghvshort -f
-systemctl restart ghvshort
+ghvshort status
 ```
 
-Der Dienst läuft als **User `ghvshort`** und kann **nur** nach `/var/lib/ghvshort` schreiben.
+Status-Kategorien:
 
----
+* `active` – aktuell gültig
+* `planned` – `not-before` liegt in der Zukunft
+* `expired` – Ablaufdatum überschritten
+* `deleted` – manuell gelöscht
 
-## nginx
-
-Beispielkonfiguration liegt unter:
-
-```
-/usr/share/doc/ghvshort/examples/nginx/go.ghv-altstadt-mg.de.conf
-```
-
-Aktivierung erfolgt **bewusst manuell**:
+Beispiele:
 
 ```bash
-cp /usr/share/doc/ghvshort/examples/nginx/go.ghv-altstadt-mg.de.conf \
-   /etc/nginx/sites-available/
-
-ln -s /etc/nginx/sites-available/go.ghv-altstadt-mg.de.conf \
-      /etc/nginx/sites-enabled/
-
-nginx -t
-systemctl reload nginx
+ghvshort status
+ghvshort status --slug sommerfest
+ghvshort status --format tsv
 ```
 
 ---
 
-## TLS / Let’s Encrypt (certbot)
-
-Webroot-Methode (keine automatische nginx-Manipulation):
+### Cleanup abgelaufener Links
 
 ```bash
-apt install certbot
-mkdir -p /var/www/_letsencrypt
-
-certbot certonly \
-  --webroot \
-  -w /var/www/_letsencrypt \
-  -d go.ghv-altstadt-mg.de
+ghvshort cleanup
 ```
 
-Zertifikate liegen danach unter:
+Markiert abgelaufene Links (`expires_at <= now`) als gelöscht (`deleted_at`).
 
-```
-/etc/letsencrypt/live/go.ghv-altstadt-mg.de/
-```
+Ein späteres Hard-Delete ist optional und nicht standardmäßig aktiv.
 
 ---
 
-## Entwicklung (macOS / lokal)
+## HTTP-Verhalten
 
-### Dev-Config
-
-`etc/ghvshort/config.dev.toml`:
-
-```toml
-[server]
-base_url = "http://localhost:8731"
-bind_host = "127.0.0.1"
-bind_port = 8731
-
-[storage]
-db_path = ".local/ghvshort.db"
-
-[slugs]
-pattern = "^[a-z0-9][a-z0-9_-]{0,62}$"
-reserved = ["health"]
-default_code = 302
-```
-
-### Workflow
-
-```bash
-make dev
-make run
-make check
-```
+| Zustand                          | HTTP-Code |
+| -------------------------------- | --------- |
+| aktiv                            | 301 / 302 |
+| noch nicht gültig (`not-before`) | 404       |
+| abgelaufen                       | 410       |
+| gelöscht                         | 404       |
 
 ---
 
-## Tooling
+## Migrationen
 
-* **ruff** – Lint & Format
-* **mypy** – Typprüfung
-* **pytest** – Tests
-* **pre-commit** – lokale Quality-Gates
-
-```bash
-make precommit
-pre-commit run --all-files
-```
-
----
-
-## Debian-Build (Docker, Debian 12 / bookworm)
-
-### Versionierung
-
-Debian-Versionen werden im Format gebaut:
-
-```
-YYYY.MM.DD-1
-```
-
-Setzen:
-
-```bash
-make deb-version
-git commit -am "Release $(date +%Y.%m.%d)-1"
-```
-
-### Build
-
-```bash
-make deb-docker-dist
-```
-
-Artefakte liegen danach unter:
-
-```
-dist/
-  ghvshort_*.deb
-  ghvshort_*.buildinfo
-  ghvshort_*.changes
-```
+* SQLite-Schema-Versionierung über `PRAGMA user_version`
+* Migrationen laufen automatisch bei:
+  * `ghvshort db-init`
+  * Paket-Installation / Upgrade
+* Migrationen sind:
+  * vorwärts-only
+  * transaktional
+  * idempotent über Versionsnummer
 
 ---
 
-## Backup / Restore
+## Entwicklung
 
 ```bash
-systemctl stop ghvshort
-cp /var/lib/ghvshort/ghvshort.db /backup/
-systemctl start ghvshort
+make dev     # Dev-Umgebung (uv)
+make test    # pytest
+make check   # ruff + mypy
 ```
 
----
+Hinweis:
+Bei Schemaänderungen kann die lokale Dev-DB gefahrlos gelöscht werden:
 
-## Design-Entscheidungen
-
-* keine Web-GUI
-* CLI als primäres Interface
-* SQLite statt Server-DB
-* nginx nicht automatisch konfiguriert
-* Debian-Konventionen strikt eingehalten
+```bash
+rm -f .local/ghvshort.db
+```
 
 ---
 
 ## Lizenz
 
-Dieses Projekt steht unter der **MIT-Lizenz**.
-Siehe Datei [`LICENSE`](LICENSE).
+MIT License
+Siehe `LICENSE`.
 
-Copyright © 2026
-Christian Schneider
+---
+
+## Projektziel
+
+`ghvshort` ist bewusst **klein**, **wartbar** und **vorhersagbar** gehalten.
+Kein Feature ohne klaren Vereinsnutzen.
+
+> Stabilität schlägt Komfort.
+> Betrieb schlägt Spielerei.

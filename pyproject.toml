@@ -55,6 +55,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "ghvshort/cli.py" = ["UP"]   # Debian/typer: cli-signatures must use Optional
+"ghvshort/db.py" = ["UP"]   # Debian/typer: cli-signatures must use Optional
+"ghvshort/web.py" = ["UP"]   # Debian/typer: cli-signatures must use Optional
 
 [tool.ruff.format]
 quote-style = "double"
