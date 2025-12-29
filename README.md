@@ -1,7 +1,10 @@
 # ghvshort
 
-Ein schlanker, selbst betriebener Link-Shortener für den
-**GHV Altstadt/MG-Bettrath e.V.**
+![Debian package](https://img.shields.io/badge/deb-2025.12.29--1-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+
+Ein schlanker, selbst betriebener Link-Shortener für den **GHV Altstadt/MG-Bettrath e.V.**
 
 Kein Webinterface, keine Cloud-Abhängigkeiten – Verwaltung erfolgt ausschließlich über eine CLI.
 Der Dienst ist für den dauerhaften Betrieb auf einem Debian-Server ausgelegt und wird als `.deb`-Paket ausgeliefert.
