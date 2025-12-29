@@ -1,3 +1,12 @@
+ghvshort (2025.12.29-1) stable; urgency=medium
+
+  * Added soft-delete function.
+  * Added not-before option to plan shortened links for the future.
+  * Added manpage
+  * Some improvements on existing functions.
+
+ -- Christian Schneider <chris@chris-codes.de>  Sun, 28 Dec 2025 22:45:00 +0100
+
 ghvshort (2025.12.28-3) testing; urgency=medium
 
   * Fixed cli signatures.
