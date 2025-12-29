@@ -1,0 +1,136 @@
+.TH GHVSHORT 1 "2025-12-29" "ghvshort 0.1.0" "User Commands"
+.SH NAME
+ghvshort \- Linkshortener für den GHV Altstadt/MG-Bettrath e.V.
+
+.SH SYNOPSIS
+.B ghvshort
+.RI <command> " [options]"
+
+.SH DESCRIPTION
+.B ghvshort
+ist ein schlanker, selbst betriebener Link-Shortener ohne Webinterface.
+Die Verwaltung erfolgt ausschließlich über eine Kommandozeilenschnittstelle.
+Der Dienst ist für den dauerhaften Betrieb auf Debian-Systemen ausgelegt
+und nutzt SQLite als lokale Datenbank.
+
+Alle Zeitangaben erfolgen in UTC und werden als ISO8601 gespeichert.
+
+.SH COMMANDS
+
+.TP
+.B db-init
+Initialisiert die Datenbank und führt notwendige Migrationen aus.
+Dieser Befehl ist idempotent und kann gefahrlos mehrfach ausgeführt werden.
+
+.TP
+.B add
+.I slug url
+.RS
+Legt einen neuen Kurzlink an.
+.RE
+
+.TP
+.B set
+.I slug
+.RS
+Ändert Eigenschaften eines bestehenden Links.
+.RE
+
+.TP
+.B rm
+.I slug
+.RS
+Markiert einen Link als gelöscht (Soft-Delete).
+Der Eintrag bleibt in der Datenbank erhalten.
+.RE
+
+.TP
+.B purge
+.I slug
+.RS
+Löscht einen Link endgültig aus der Datenbank.
+Dieser Vorgang ist irreversibel und erfordert eine explizite Bestätigung.
+.RE
+
+.TP
+.B ls
+.RS
+Listet alle Links auf.
+.RE
+
+.TP
+.B status
+.RS
+Zeigt den aktuellen Status der Links an (active, planned, expired, deleted).
+.RE
+
+.TP
+.B cleanup
+.RS
+Markiert abgelaufene Links als gelöscht.
+.RE
+
+.TP
+.B serve
+.RS
+Startet den HTTP-Dienst (normalerweise über systemd verwaltet).
+.RE
+
+.SH OPTIONS
+
+.TP
+.BR --code " 301|302"
+HTTP-Redirect-Code für einen Link.
+
+.TP
+.BR --not-before " DATUM"
+Link ist erst ab diesem Zeitpunkt gültig.
+
+.TP
+.BR --expires " DATUM"
+Link läuft zu diesem Zeitpunkt ab.
+
+.TP
+.BR --no-expires
+Entfernt ein Ablaufdatum.
+
+.TP
+.BR --no-not-before
+Entfernt ein Startdatum.
+
+.TP
+.BR --format " FORMAT"
+Ausgabeformat: table, tsv oder json.
+
+.TP
+.BR --yes
+Bestätigt destruktive Aktionen wie purge.
+
+.SH HTTP BEHAVIOR
+
+.TS
+tab(|);
+l l.
+Zustand|HTTP-Code
+_
+aktiv|301 / 302
+noch nicht gültig|404
+abgelaufen|410
+gelöscht|404
+.TE
+
+.SH FILES
+
+.TP
+.I /etc/ghvshort/config.toml
+Hauptkonfigurationsdatei.
+
+.TP
+.I /var/lib/ghvshort/ghvshort.db
+SQLite-Datenbank.
+
+.SH SEE ALSO
+systemctl(1), nginx(8), sqlite3(1)
+
+.SH AUTHOR
+Christian Schneider
