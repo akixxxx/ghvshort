@@ -179,10 +179,10 @@ def export_json() -> None:
                 "short_url": f"{settings.base_url}/{link.slug}",
                 "url": link.url,
                 "code": link.code,
-                "hits": link.hits,
+                "hits": 0,
                 "not_before_at": link.not_before_at,
                 "expires_at": link.expires_at,
-                "last_access_at": link.last_access_at,
+                "last_access_at": None,
             }
             for link in links
         ],
