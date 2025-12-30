@@ -235,6 +235,26 @@ class Repo:
                 return None
             return Link(**dict(row))
 
+    def list_active_links(self, now_iso: str) -> list[Link]:
+        """
+        Active = not deleted AND (not_before_at is NULL OR not_before_at <= now)
+                        AND (expires_at is NULL OR expires_at > now)
+        """
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT slug, url, code, created_at, updated_at, expires_at, not_before_at,
+                    hits, last_access_at, deleted_at
+                FROM links
+                WHERE deleted_at IS NULL
+                AND (not_before_at IS NULL OR not_before_at <= ?)
+                AND (expires_at IS NULL OR expires_at > ?)
+                ORDER BY slug
+                """,
+                (now_iso, now_iso),
+            ).fetchall()
+            return [Link(**dict(r)) for r in rows]
+
     def touch_hit(self, slug: str) -> None:
         now = utc_now_iso()
         with self.connect() as conn, conn:

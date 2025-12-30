@@ -61,6 +61,9 @@ db_path = "/var/lib/ghvshort/ghvshort.db"
 pattern = "^[a-z0-9][a-z0-9_-]{0,62}$"
 reserved = ["health"]
 default_code = 302
+
+[export]
+json_path = "/var/lib/ghvshort/public/active-links.json
 ```
 
 Alle Zeitangaben erfolgen in **UTC** und werden als **ISO8601** gespeichert.
@@ -189,6 +192,118 @@ ghvshort status
 ghvshort status --slug sommerfest
 ghvshort status --format tsv
 ```
+
+Gerne. Hier ist ein **kompaktes, sachliches README-Snippet**, das genau das neue Feature erklärt, ohne den Rest aufzublähen.
+Du kannst es **1:1** an geeigneter Stelle (z. B. nach *HTTP-Verhalten* oder *CLI-Befehle*) einfügen.
+
+---
+
+## JSON-Export für Dokumentation (MkDocs)
+
+`ghvshort` kann eine **maschinenlesbare Übersicht aller aktuell aktiven Links** als JSON-Datei erzeugen.
+Diese ist für die Einbindung in die Vereinsdokumentation (z. B. MkDocs) gedacht.
+
+### Eigenschaften
+
+* enthält **nur aktive Links**
+
+  * nicht gelöscht
+  * `not-before` erreicht
+  * nicht abgelaufen
+* atomar geschrieben (keine halbfertigen Dateien)
+* **world-readable** (`0644`)
+* zyklisch per **systemd-Timer**
+* zusätzlich aktualisiert nach Änderungen (`add`, `set`, `rm`, `purge`, `cleanup`)
+
+---
+
+### Konfiguration
+
+In `/etc/ghvshort/config.toml`:
+
+```toml
+[export]
+json_path = "/var/lib/ghvshort/public/links.json"
+```
+
+Wird `export.json_path` nicht gesetzt, ist der Export deaktiviert.
+
+---
+
+### Manuelles Erzeugen
+
+```bash
+ghvshort export-json
+```
+
+Erzeugt bzw. aktualisiert die konfigurierte JSON-Datei.
+
+---
+
+### Automatische Aktualisierung
+
+Das Paket liefert einen systemd-Timer mit:
+
+* **Service:** `ghvshort-export.service`
+* **Timer:** `ghvshort-export.timer` (stündlich)
+
+Aktivierung:
+
+```bash
+systemctl enable --now ghvshort-export.timer
+```
+
+---
+
+### Einbindung über nginx
+
+Beispiel-Snippet für einen bestehenden nginx-vHost:
+
+```nginx
+location = /links.json {
+    default_type application/json;
+    add_header Cache-Control "no-store";
+    alias /var/lib/ghvshort/public/links.json;
+}
+```
+
+Die Datei kann anschließend z. B. von MkDocs per JavaScript geladen und dargestellt werden.
+
+---
+
+### Format
+
+Beispiel:
+
+```json
+{
+  "generated_at": "2025-12-29T12:00:00+00:00",
+  "base_url": "https://go.ghv-altstadt-mg.de",
+  "count": 2,
+  "links": [
+    {
+      "slug": "sommerfest",
+      "short_url": "https://go.ghv-altstadt-mg.de/sommerfest",
+      "url": "https://example.org/fest",
+      "code": 302,
+      "hits": 17,
+      "not_before_at": null,
+      "expires_at": "2026-06-03T00:00:00+00:00",
+      "last_access_at": "2025-12-28T19:12:00+00:00"
+    }
+  ]
+}
+```
+
+---
+
+### Designentscheidung
+
+Der Export erfolgt **nicht über HTTP-Endpoints**, sondern bewusst als Datei:
+
+* kein zusätzlicher API-Angriffspunkt
+* einfache Integration in statische Dokumentation
+* robust gegenüber Neustarts und Deployments
 
 ---
 

@@ -1,4 +1,6 @@
 etc/ghvshort/config.toml                                    etc/ghvshort/
 lib/systemd/system/ghvshort.service                         lib/systemd/system/
+lib/systemd/system/ghvshort-export.service                  lib/systemd/system/
+lib/systemd/system/ghvshort-export.timer                    lib/systemd/system/
 share/doc/ghvshort/examples/nginx/go.ghv-altstadt-mg.de     usr/share/doc/ghvshort/examples/nginx/
 share/doc/ghvshort/examples/nginx/ghvshort-ratelimit.conf   usr/share/doc/ghvshort/examples/nginx/

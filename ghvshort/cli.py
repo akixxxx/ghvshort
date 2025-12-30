@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -11,6 +13,44 @@ from .config import Settings, load_settings
 from .db import Repo
 
 app = typer.Typer(add_completion=False)
+
+
+def _write_json_atomically(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(content, encoding="utf-8")
+    os.chmod(tmp, 0o644)  # world-readable
+    os.replace(tmp, path)  # atomic on POSIX
+
+
+def _maybe_export_after_change(settings: Settings, repo: Repo) -> None:
+    if settings.export_json_path is None:
+        return
+    try:
+        now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        links = repo.list_active_links(now_iso)
+        payload = {
+            "generated_at": now_iso,
+            "base_url": settings.base_url,
+            "count": len(links),
+            "links": [
+                {
+                    "slug": link.slug,
+                    "short_url": f"{settings.base_url}/{link.slug}",
+                    "url": link.url,
+                    "code": link.code,
+                    "hits": link.hits,
+                    "not_before_at": link.not_before_at,
+                    "expires_at": link.expires_at,
+                    "last_access_at": link.last_access_at,
+                }
+                for link in links
+            ],
+        }
+        _write_json_atomically(settings.export_json_path, json.dumps(payload, indent=2) + "\n")
+    except Exception as e:
+        # IMPORTANT: cli commands should not fail because of missing config
+        typer.echo(f"Warning: export-json failed: {e}", err=True)
 
 
 def _print_table(headers: list[str], rows: list[list[str]], max_width: int = 120) -> None:
@@ -116,6 +156,40 @@ def add(
         raise typer.Exit(1) from e
 
     typer.echo(f"Added: {settings.base_url}/{slug} -> {url} ({use_code})")
+    _maybe_export_after_change(settings, repo)
+
+
+@app.command("export-json")
+def export_json() -> None:
+    repo, settings = get_repo()
+    if settings.export_json_path is None:
+        typer.echo("export.json_path not set; nothing to do.", err=True)
+        raise typer.Exit(1)
+
+    now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+    links = repo.list_active_links(now_iso)
+    payload = {
+        "generated_at": now_iso,
+        "base_url": settings.base_url,
+        "count": len(links),
+        "links": [
+            {
+                "slug": link.slug,
+                "short_url": f"{settings.base_url}/{link.slug}",
+                "url": link.url,
+                "code": link.code,
+                "hits": link.hits,
+                "not_before_at": link.not_before_at,
+                "expires_at": link.expires_at,
+                "last_access_at": link.last_access_at,
+            }
+            for link in links
+        ],
+    }
+
+    _write_json_atomically(settings.export_json_path, json.dumps(payload, indent=2) + "\n")
+    typer.echo(f"Wrote: {settings.export_json_path}")
 
 
 @app.command("set")
@@ -144,6 +218,7 @@ def set_link(
         raise typer.Exit(1) from None
 
     typer.echo(f"Updated: {settings.base_url}/{slug}")
+    _maybe_export_after_change(settings, repo)
 
 
 @app.command("rm")
@@ -157,6 +232,7 @@ def rm(slug: str) -> None:
         raise typer.Exit(1) from None
 
     typer.echo(f"Deleted (soft): {settings.base_url}/{slug}")
+    _maybe_export_after_change(settings, repo)
 
 
 @app.command("purge")
@@ -185,6 +261,7 @@ def purge(
         raise typer.Exit(1)
 
     typer.echo(f"Purged: {settings.base_url}/{slug}")
+    _maybe_export_after_change(settings, repo)
 
 
 @app.command("ls")

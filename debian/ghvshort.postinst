@@ -17,6 +17,8 @@ case "$1" in
     chown ghvshort:ghvshort /var/lib/ghvshort
     chmod 0750 /var/lib/ghvshort
 
+    install -d -o ghvshort -g ghvshort -m 0755 /var/lib/ghvshort/public
+
     if command -v ghvshort >/dev/null 2>&1; then
       su -s /bin/sh -c \
         'GHVSHORT_CONFIG=/etc/ghvshort/config.toml ghvshort db-init' \

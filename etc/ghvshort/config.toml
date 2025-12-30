@@ -10,3 +10,6 @@ db_path = "/var/lib/ghvshort/ghvshort.db"
 pattern = "^[a-z0-9][a-z0-9_-]{0,62}$"
 reserved = ["health", "metrics", "favicon.ico", "robots.txt"]
 default_code = 302
+
+[export]
+json_path = "/var/lib/ghvshort/public/active-links.json"

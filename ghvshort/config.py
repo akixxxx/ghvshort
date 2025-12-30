@@ -20,6 +20,7 @@ class Settings:
     slug_re: re.Pattern[str]
     reserved_slugs: set[str]
     default_code: int
+    export_json_path: Path | None
 
 
 def load_settings() -> Settings:
@@ -32,6 +33,7 @@ def load_settings() -> Settings:
     server = data.get("server", {})
     storage = data.get("storage", {})
     slugs = data.get("slugs", {})
+    export = data.get("export", {})
 
     pattern = slugs.get("pattern", r"^[a-z0-9][a-z0-9_-]{0,62}$")
     reserved = set(slugs.get("reserved", []))
@@ -49,6 +51,11 @@ def load_settings() -> Settings:
     if default_code not in (301, 302):
         raise ValueError("slugs.default_code must be 301 or 302")
 
+    export_json_path_raw = export.get("json_path", "")
+    export_json_path = (
+        Path(str(export_json_path_raw)) if str(export_json_path_raw).strip() else None
+    )
+
     try:
         slug_re = re.compile(pattern)
     except re.error as e:
@@ -62,4 +69,5 @@ def load_settings() -> Settings:
         slug_re=slug_re,
         reserved_slugs=reserved,
         default_code=default_code,
+        export_json_path=export_json_path,
     )
