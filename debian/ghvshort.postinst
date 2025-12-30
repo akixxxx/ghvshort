@@ -13,11 +13,11 @@ case "$1" in
         ghvshort
     fi
 
-    mkdir -p /var/lib/ghvshort
-    chown ghvshort:ghvshort /var/lib/ghvshort
-    chmod 0755 /var/lib/ghvshort
+    # Base data dir (not world-traversable)
+    install -d -o ghvshort -g ghvshort -m 0750 /var/lib/ghvshort
 
-    install -d -o ghvshort -g ghvshort -m 0755 /var/lib/ghvshort/public
+    # Public export dir (readable/traversable for group only; nginx user is added to group manually)
+    install -d -o ghvshort -g ghvshort -m 0750 /var/lib/ghvshort/public
 
     if command -v ghvshort >/dev/null 2>&1; then
       su -s /bin/sh -c \

@@ -255,6 +255,23 @@ systemctl enable --now ghvshort-export.timer
 
 ---
 
+### Berechtigungen für JSON-Export
+
+Der JSON-Export wird standardmäßig unter `/var/lib/ghvshort/public/active-links.json` abgelegt.
+
+Das Verzeichnis `/var/lib/ghvshort` ist bewusst **nicht world-readable**. Damit der Webserver (nginx) dennoch auf die Exportdatei zugreifen kann, muss der nginx-User Mitglied der Gruppe `ghvshort` sein.
+
+Auf Debian (Standard: `www-data`):
+
+```bash
+usermod -aG ghvshort www-data
+systemctl restart nginx
+```
+
+Nach diesem Schritt kann nginx die Datei lesen, ohne dass das Datenverzeichnis für alle Benutzer geöffnet wird.
+
+---
+
 ### Einbindung über nginx
 
 Beispiel-Snippet für einen bestehenden nginx-vHost:
