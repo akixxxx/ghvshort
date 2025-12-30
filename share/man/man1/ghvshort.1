@@ -71,6 +71,14 @@ Markiert abgelaufene Links als gelöscht.
 .RE
 
 .TP
+.B export-json
+.RS
+Erzeugt eine JSON-Datei mit allen aktuell aktiven Kurzlinks.
+Der Export ist für die Einbindung in statische Dokumentation (z. B. MkDocs) gedacht
+und wird atomar geschrieben.
+.RE
+
+.TP
 .B serve
 .RS
 Startet den HTTP-Dienst (normalerweise über systemd verwaltet).
@@ -119,6 +127,24 @@ abgelaufen|410
 gelöscht|404
 .TE
 
+.SH JSON EXPORT
+
+ghvshort kann eine maschinenlesbare Übersicht aller aktiven Kurzlinks
+als JSON-Datei erzeugen.
+
+Der Export enthält ausschließlich Links, die:
+.IP \[bu] 2
+nicht gelöscht sind
+.IP \[bu]
+deren not-before-Zeitpunkt erreicht ist
+.IP \[bu]
+und deren Ablaufdatum noch nicht überschritten ist
+
+Die Datei wird atomar geschrieben und mit Leserechten für alle Benutzer
+(0644) abgelegt.
+
+Der Export kann manuell oder zyklisch per systemd-Timer erfolgen.
+
 .SH FILES
 
 .TP
@@ -128,6 +154,11 @@ Hauptkonfigurationsdatei.
 .TP
 .I /var/lib/ghvshort/ghvshort.db
 SQLite-Datenbank.
+
+.TP
+.I /var/lib/ghvshort/public/links.json
+JSON-Exportdatei mit allen aktuell aktiven Kurzlinks.
+Der Pfad ist konfigurierbar.
 
 .SH SEE ALSO
 systemctl(1), nginx(8), sqlite3(1)
