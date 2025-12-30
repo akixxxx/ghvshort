@@ -15,7 +15,7 @@ case "$1" in
 
     mkdir -p /var/lib/ghvshort
     chown ghvshort:ghvshort /var/lib/ghvshort
-    chmod 0750 /var/lib/ghvshort
+    chmod 0755 /var/lib/ghvshort
 
     install -d -o ghvshort -g ghvshort -m 0755 /var/lib/ghvshort/public
 
